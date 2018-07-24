@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>Document</title>
+    
+    <script src="https://unpkg.com/vue/dist/vue.js"></script>
+    <script src="./lib/axios.js"></script>
+    <script src="https://unpkg.com/vue-router/dist/vue-router.js"></script>
+    <link rel="stylesheet" href="./css/comment.css">
+</head>
+<body>
+        
+        
+        <div id="app">
+        
+          <p>
+            <!-- 使用 router-link 组件来导航. -->
+            <!-- 通过传入 `to` 属性指定链接. -->
+            <!-- <router-link> 默认会被渲染成一个 `<a>` 标签 -->
+            <router-link to="/weather">天气查询</router-link>
+            <router-link to="/chartr">聊天妹妹</router-link>
+            <router-link to="/musicPlay">音乐播放</router-link>
+          </p>
+          <!-- 路由出口 -->
+          <!-- 路由匹配到的组件将渲染在这里 -->
+          <router-view></router-view>
+        </div>
+</body>
+</html>
+<!-- 天气模板 -->
+<script type="text/html" id="weather">
+    <div class="weather">
+        <img class="sun" src="./img/sun.1.jpg" alt="">
+        <input type="text" v-model.trim="city" placeholder="请输入查询的城市" @keyup.enter="search">
+        <transition-group v-show="weatherList.length!=0"  tag="ul" name="list">
+            <li v-bind:style="{transitionDelay:index*200 + 'ms'}" v-for="(item, index) in weatherList" :key="item.date">
+                {{item.date}} {{item.fengxiang}} {{item.high}} {{item.low}}
+            </li>
+        </transition-group>
+        <img class="bigPic" v-show="idShow" src="./img/nonon.jpg" alt="">
+    </div>
+</script>
+<!-- 聊天模板 -->
+<script type="text/html" id="chatTem">
+    <div class="chatgirl">
+        <img class='meinv' src="./img/1221212.jpg" alt="">
+        <input type="text" placeholder="对面是小姐姐哦!!!" @keyup.enter="chat" v-model="mes">
+        <transition-group tag="ul" name='list-complete' class="map">
+            <li class="list-complete-item" @dblclick="removechat(index)" v-bind:class="{fangxiang:item.isMe}" v-for="(item, index) in chatList"
+                :key="item.info">
+                <img class="touxiang" :src="item.isMe?'./img/111.png':'./img/littlegirl.png'" alt="">
+                <p>{{item.info}}</p>
+            </li>
+        </transition-group>
+    </div>
+</script>
+<!-- 音乐模板 -->
+<script type="text/html" id="music">
+    <div class="music">
+        <div class="left">
+           
+            <input type="text" v-model="keyword" @keyup.enter="searchMusic" placeholder="请输入歌名">
+            <transition-group v-show="musicList.length!=0" tag="ul" name="list-complete">
+                <li @dblclick="playMusic(item.id)" :style="{transitionDelay:index*10+'ms'}" class="list-complete-item" v-for="(item, index) in musicList"
+                    :key="item.id">
+                    <span>{{index+1}}.</span> {{item.name}}--{{item.artists[0].name}}
+                </li>
+            </transition-group>
+        </div>
+        <div class="right">
+            <img v-bind:class="{play:isPlay}" class="auto-rotate" :src="picUrl" alt="">
+            <audio @play="play" @pause="pause" class="palyss" autoplay :src="musicUrl" controls></audio>
+        </div>
+    </div>
+</script>
+<script>
+    // 0. 如果使用模块化机制编程，导入Vue和VueRouter，要调用 Vue.use(VueRouter)
+
+// 1. 定义 (路由) 组件。
+// 可以从其他文件 import 进来
+const weather = {
+        template: "#weather",
+        data: function () {
+            return {
+                city: '',
+                weatherList: [],
+                idShow:false
+            };
+        },
+        methods: {
+            search() {
+                this.weatherList=[];
+                axios.get(`http://wthrcdn.etouch.cn/weather_mini?city=${this.city}`)
+                    .then((response) => {
+                        if(response.data.data){
+                            this.weatherList = response.data.data.forecast;
+                            this.idShow=false;
+                        }else{
+                            this.idShow=true;
+                        }
+                        
+                    })
+                    .catch((error) => {
+                        // handle error
+                        console.log(error);
+                    })
+            }
+        }
+    }
+const chartr = {
+        template: '#chatTem',
+        data: function () {
+            return {
+                mes: '',
+                chatList: []
+            }
+        },
+        methods: {
+            chat() {
+                this.chatList.push({
+                    info: this.mes,
+                    isMe: true
+                })
+                const params = new URLSearchParams();
+                params.append('key', 'cda82745954649308b84e6b64de45776');
+                params.append('info', this.mes);
+                axios.post('http://www.tuling123.com/openapi/api', params)
+                    .then((response) => {
+                        
+                        this.chatList.push({
+                            info: response.data.text,
+                            isMe: false
+                        })
+                        this.mes = '';
+                    })
+                    .catch(response => {})
+            },
+            removechat(index) {
+                this.chatList.splice(index, 1);
+
+            }
+        }
+    }
+const musicPlay ={
+        template: '#music',
+        data: function () {
+            return {
+                musicList: [],
+                keyword: '',
+                musicUrl: '',
+                picUrl: '',
+                isPlay: false
+            }
+        },
+        methods: {
+            searchMusic() {
+                axios.get(`http://39.108.140.202:3000/search?keywords=${this.keyword}`)
+                    .then(response => {
+                        // console.log(response);
+                        this.musicList = response.data.result.songs;
+                    })
+                    .catch(response => {})
+            },
+            playMusic(id) {
+                axios.get(`http://39.108.140.202:3000/music/url?id=${id}`)
+                    .then((response) => {
+                        this.musicUrl = response.data.data[0].url;
+                    })
+                    .catch(response => {})
+                axios.get(`http://39.108.140.202:3000/song/detail?ids=${id}`)
+                    .then((response) => {
+                        // console.log(response);
+                        this.picUrl = response.data.songs[0].al.picUrl;
+                    })
+                    .catch((response) => {})
+            },
+            play() {
+                this.isPlay = true;
+            },
+            pause() {
+                this.isPlay = false;
+            }
+        }
+    }
+
+// 2. 定义路由
+// 每个路由应该映射一个组件。 其中"component" 可以是
+// 通过 Vue.extend() 创建的组件构造器，
+// 或者，只是一个组件配置对象。
+// 我们晚点再讨论嵌套路由。
+const routes = [
+  { path: '/', component: weather },
+  { path: '/weather', component: weather },
+  { path: '/chartr', component: chartr },
+  { path: '/musicPlay', component: musicPlay }
+]
+
+// 3. 创建 router 实例，然后传 `routes` 配置
+// 你还可以传别的配置参数, 不过先这么简单着吧。
+const router = new VueRouter({
+  routes // (缩写) 相当于 routes: routes
+})
+
+// 4. 创建和挂载根实例。
+// 记得要通过 router 配置参数注入路由，
+// 从而让整个应用都有路由功能
+const app = new Vue({
+    el:"#app",
+  router
+})
+
+// 现在，应用已经启动了！
+</script>
